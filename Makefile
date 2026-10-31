@@ -1,28 +1,36 @@
-CC ?= cc
-CPPFLAGS ?=
-CFLAGS ?= -O2 -g
-LDFLAGS ?=
-LDLIBS ?=
+# Run make clean before changing the compiler, sysroot, or flags.
+CROSS_COMPILE ?= aarch64-none-linux-gnu-
+SYSROOT ?= /home/ma/local_sysroot
+CC = $(CROSS_COMPILE)gcc
 
-PROJECT_CPPFLAGS = -D_POSIX_C_SOURCE=200809L -D_FILE_OFFSET_BITS=64 -I.
-PROJECT_CFLAGS = -std=c11 -Wall -Wextra -Wpedantic -Wformat=2 -Wshadow
-SOURCES = abctl.c cli.c ab_metadata.c ab_slot.c misc_io.c crc32.c
-OBJECTS = $(SOURCES:%.c=build/%.o)
-DEPS = $(OBJECTS:.o=.d)
+CPPFLAGS += -D_POSIX_C_SOURCE=200809L -D_FILE_OFFSET_BITS=64
+CFLAGS = -O2 -g -std=c11 -Wall -Wextra -Wpedantic -Wformat=2 -Wshadow
+
+ifneq ($(SYSROOT),)
+CPPFLAGS += --sysroot=$(SYSROOT) \
+	-isystem $(SYSROOT)/usr/local/include \
+	-isystem $(SYSROOT)/usr/include/aarch64-linux-gnu \
+	-isystem $(SYSROOT)/usr/include
+LDFLAGS += --sysroot=$(SYSROOT) \
+	-B$(SYSROOT)/usr/lib/aarch64-linux-gnu \
+	-L$(SYSROOT)/usr/lib/aarch64-linux-gnu \
+	-L$(SYSROOT)/usr/local/lib
+endif
+
+SOURCES := abctl.c cli.c ab_metadata.c ab_slot.c misc_io.c crc32.c
+OBJECTS := $(SOURCES:%.c=build/%.o)
 
 .PHONY: all clean
 all: abctl
 
-abctl: $(OBJECTS)
-	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+abctl: $(OBJECTS) Makefile
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS)
 
-build/%.o: %.c | build
-	$(CC) $(CPPFLAGS) $(PROJECT_CPPFLAGS) $(CFLAGS) $(PROJECT_CFLAGS) -MMD -MP -c $< -o $@
+build/%.o: %.c $(wildcard *.h) Makefile | build
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 build:
 	mkdir -p $@
 
 clean:
-	$(RM) $(OBJECTS) $(DEPS) abctl
-
--include $(DEPS)
+	$(RM) $(OBJECTS) abctl

@@ -21,8 +21,6 @@ static AbSlotResult apply_request(const CliRequest *request, AvbABData *data)
         return ab_slot_apply(data, request->slot, AB_SLOT_SUCCESSFUL);
     case CLI_UNBOOTABLE:
         return ab_slot_apply(data, request->slot, AB_SLOT_UNBOOTABLE);
-    case CLI_SET_SLOT:
-        return ab_slot_update(data, request->slot, &request->update);
     default:
         return AB_SLOT_INVALID_ARGUMENT;
     }
@@ -30,6 +28,7 @@ static AbSlotResult apply_request(const CliRequest *request, AvbABData *data)
 
 int main(int argc, char **argv)
 {
+    const char *path = "misc.img";
     CliRequest request;
     const char *error = cli_parse(argc, argv, &request);
     if (error != NULL) {
@@ -42,11 +41,11 @@ int main(int argc, char **argv)
         return 0;
     }
     bool writable = request.command != CLI_SHOW;
-    int fd = misc_io_open(request.path, writable);
+    int fd = misc_io_open(path, writable);
     if (fd < 0) {
         fprintf(stderr, "abctl: open/lock/size check '%s': %s "
                 "(expected a regular file or block device of at least 2080 bytes)\n",
-                request.path, strerror(errno));
+                path, strerror(errno));
         return 1;
     }
     int result = 1;
@@ -60,7 +59,7 @@ int main(int argc, char **argv)
     }
     bool valid = ab_metadata_decode(original, &data, &validation);
     if (!writable) {
-        cli_show(request.path, &data, &validation);
+        cli_show(path, &data, &validation);
         if (!valid)
             cli_validation_errors(&validation);
         result = valid ? 0 : 1;
@@ -74,8 +73,6 @@ int main(int argc, char **argv)
     if (slot_result != AB_SLOT_OK) {
         const char *reason = slot_result == AB_SLOT_NOT_BOOTABLE ?
             "cannot mark an unbootable slot successful" :
-            slot_result == AB_SLOT_INVALID_COMBINATION ?
-            "invalid final slot combination; supply matching fields in one set-slot command" :
             "invalid slot operation";
         fprintf(stderr, "abctl: %s\n", reason);
         goto out;
@@ -105,7 +102,7 @@ out:
     }
     if (result == 0 && writable) {
         puts(write_attempted ? "metadata updated and verified" : "metadata unchanged");
-        cli_show(request.path, &data, &validation);
+        cli_show(path, &data, &validation);
     }
     if (fflush(stdout) == EOF || ferror(stdout)) {
         fputs("abctl: output failed\n", stderr);

@@ -2,4 +2,4 @@
 *.img
 abctl
 build/
-__pycache__/
+compile_commands.json

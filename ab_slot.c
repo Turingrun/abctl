@@ -68,21 +68,3 @@ AbSlotResult ab_slot_apply(AvbABData *data, unsigned slot, AbSlotAction action)
     *data = next;
     return AB_SLOT_OK;
 }
-
-AbSlotResult ab_slot_update(AvbABData *data, unsigned slot, const AbSlotUpdate *update)
-{
-    if (slot > 1 || !ab_metadata_fields_valid(data) ||
-        !(update->has_priority || update->has_tries || update->has_successful))
-        return AB_SLOT_INVALID_ARGUMENT;
-    AvbABSlotData next = data->slots[slot];
-    if (update->has_priority)
-        next.priority = update->priority;
-    if (update->has_tries)
-        next.tries_remaining = update->tries;
-    if (update->has_successful)
-        next.successful_boot = update->successful;
-    if (!ab_slot_canonical(&next))
-        return AB_SLOT_INVALID_COMBINATION;
-    data->slots[slot] = next;
-    return AB_SLOT_OK;
-}

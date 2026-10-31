@@ -1,33 +1,13 @@
 #include "cli.h"
+#include "ab_slot.h"
 
 #include <inttypes.h>
 #include <string.h>
 
-static bool parse_number(const char *text, unsigned max, uint8_t *result)
-{
-    if (*text == '\0')
-        return false;
-    unsigned value = 0;
-    for (const char *p = text; *p; ++p) {
-        if (*p < '0' || *p > '9')
-            return false;
-        value = value * 10 + (unsigned)(*p - '0');
-        if (value > max)
-            return false;
-    }
-    *result = (uint8_t)value;
-    return true;
-}
-
 const char *cli_parse(int argc, char **argv, CliRequest *request)
 {
-    *request = (CliRequest){.path = "misc.img", .command = CLI_HELP};
+    *request = (CliRequest){.command = CLI_HELP};
     int i = 1;
-    if (i < argc && strcmp(argv[i], "--misc") == 0) {
-        if (++i == argc || argv[i][0] == '\0')
-            return "--misc requires a nonempty path";
-        request->path = argv[i++];
-    }
     if (i == argc)
         return "a command is required";
     const char *command = argv[i++];
@@ -43,8 +23,6 @@ const char *cli_parse(int argc, char **argv, CliRequest *request)
         request->command = CLI_SUCCESSFUL;
     else if (strcmp(command, "mark-unbootable") == 0)
         request->command = CLI_UNBOOTABLE;
-    else if (strcmp(command, "set-slot") == 0)
-        request->command = CLI_SET_SLOT;
     else
         return "unknown command";
     if (request->command == CLI_SHOW || request->command == CLI_INIT ||
@@ -59,59 +37,20 @@ const char *cli_parse(int argc, char **argv, CliRequest *request)
         request->slot = 1;
     else
         return "invalid slot: use a, b, 0, or 1";
-    if (request->command != CLI_SET_SLOT)
-        return i == argc ? NULL : "unexpected argument";
-    if (i == argc)
-        return "set-slot requires at least one field";
-    while (i < argc) {
-        const char *option = argv[i++];
-        bool *present;
-        uint8_t *value;
-        unsigned max;
-        if (strcmp(option, "--priority") == 0) {
-            present = &request->update.has_priority;
-            value = &request->update.priority;
-            max = AVB_AB_MAX_PRIORITY;
-        } else if (strcmp(option, "--tries") == 0) {
-            present = &request->update.has_tries;
-            value = &request->update.tries;
-            max = AVB_AB_MAX_TRIES_REMAINING;
-        } else if (strcmp(option, "--successful") == 0) {
-            present = &request->update.has_successful;
-            value = &request->update.successful;
-            max = 1;
-        } else {
-            return "unknown set-slot option";
-        }
-        if (*present)
-            return "duplicate set-slot option";
-        if (i == argc || !parse_number(argv[i++], max, value))
-            return "invalid field value: decimal priority=0..15, tries=0..7, successful=0..1";
-        *present = true;
-    }
-    return NULL;
+    return i == argc ? NULL : "unexpected argument";
 }
 
 void cli_help(FILE *out)
 {
-    fputs("Usage: abctl [--misc PATH] COMMAND [ARGS]\n"
-          "Default target: ./misc.img; metadata: offset 2048, length 32 bytes.\n"
+    fputs("Usage: abctl COMMAND [ARGS]\n"
+          "Target: ./misc.img; metadata: offset 2048, length 32 bytes.\n"
           "Commands:\n"
           "  show\n"
           "  set-active SLOT\n"
           "  mark-successful SLOT\n"
           "  mark-unbootable SLOT\n"
-          "  set-slot SLOT [--priority N] [--tries N] [--successful N]\n"
           "  init                  Reset metadata, including reserved bytes.\n"
-          "  --help\n"
-          "SLOT: a/b or 0/1. Fields: priority=0..15, tries=0..7, successful=0..1.\n"
-          "set-slot accepts only disabled 0/0/0, trial 1..15/1..7/0, or\n"
-          "successful 1..15/0/1 final states; unspecified fields are preserved.\n"
-          "Examples:\n"
-          "  abctl show\n"
-          "  abctl --misc test.img set-active b\n"
-          "  abctl set-slot a --priority 14 --tries 0 --successful 1\n"
-          "Exit codes: 0=success, 1=operation/validation failure, 2=usage error.\n", out);
+          "  --help\n", out);
 }
 
 void cli_validation_errors(const AbValidation *validation)
