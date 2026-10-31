@@ -43,7 +43,6 @@ const char *cli_parse(int argc, char **argv, CliRequest *request)
 void cli_help(FILE *out)
 {
     fputs("Usage: abctl COMMAND [ARGS]\n"
-          "Target: ./misc.img; metadata: offset 2048, length 32 bytes.\n"
           "Commands:\n"
           "  show\n"
           "  set-active SLOT\n"

@@ -28,7 +28,7 @@ static AbSlotResult apply_request(const CliRequest *request, AvbABData *data)
 
 int main(int argc, char **argv)
 {
-    const char *path = "misc.img";
+    const char *path = "/dev/disk/by-partlabel/misc";
     CliRequest request;
     const char *error = cli_parse(argc, argv, &request);
     if (error != NULL) {
